@@ -6,7 +6,7 @@ import basicSsl from '@vitejs/plugin-basic-ssl'
 
 export default defineConfig({
   plugins: [
-    basicSsl(),   // enables HTTPS for mobile testing —마이크 접근도 가능해짐
+    ...(process.env.NODE_ENV !== 'production' ? [basicSsl()] : []),
     react(),
     tailwindcss(),
     VitePWA({
