@@ -11,21 +11,27 @@ interface Props {
 }
 
 export default function RecordScreen({ racket, onBack, onSaved }: Props) {
-  const { status, errorMessage, fftData, waveformData, startListening, stopListening, reset } = useAudioAnalyzer()
+  const { status, errorMessage, fftData, waveformData, hitCount, requiredHits, startListening, stopListening, reset } = useAudioAnalyzer()
   const [saving, setSaving] = useState(false)
 
   const handleSave = async () => {
     if (!fftData) return
     setSaving(true)
-    await saveBestSound({
-      id: generateId(),
-      racketId: racket.id,
-      type: 'best',
-      fftData,
-      recordedAt: Date.now(),
-    })
-    setSaving(false)
-    onSaved()
+    try {
+      await saveBestSound({
+        id: generateId(),
+        racketId: racket.id,
+        type: 'best',
+        fftData,
+        recordedAt: Date.now(),
+      })
+      onSaved()
+    } catch (err) {
+      console.error('saveBestSound failed:', err)
+      alert('저장 중 오류가 발생했습니다. 다시 시도해주세요.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const isListening = status === 'listening'
@@ -56,11 +62,29 @@ export default function RecordScreen({ racket, onBack, onSaved }: Props) {
         <div className="bg-white/5 rounded-2xl p-4 mb-6">
           <Waveform data={waveformData} color={waveColor} height={64} />
           <p className="text-center text-xs text-white/30 mt-2">
-            {isListening ? '줄을 손가락으로 튕겨주세요...' :
-             isCaptured ? '녹음 완료!' :
-             '마이크 버튼을 눌러 시작'}
+            {isListening
+              ? hitCount === 0
+                ? '손바닥이나 라켓 옆면으로 줄을 쳐주세요...'
+                : `${hitCount}/${requiredHits}번 감지됨 — 계속 쳐주세요`
+              : isCaptured
+              ? '녹음 완료!'
+              : '마이크 버튼을 눌러 시작'}
           </p>
         </div>
+
+        {/* Hit progress dots */}
+        {isListening && (
+          <div className="flex justify-center gap-3 mb-6">
+            {Array.from({ length: requiredHits }, (_, i) => (
+              <div
+                key={i}
+                className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                  i < hitCount ? 'bg-green-400 scale-110' : 'bg-white/20'
+                }`}
+              />
+            ))}
+          </div>
+        )}
 
         {/* Error */}
         {status === 'error' && (
@@ -89,15 +113,15 @@ export default function RecordScreen({ racket, onBack, onSaved }: Props) {
               </button>
               <p className="text-xs text-white/30 text-center">
                 {isListening
-                  ? '소리 감지 중 — 줄을 튕기거나 버튼을 눌러 중지'
-                  : '버튼을 누른 뒤 줄을 손가락으로 탁 튕겨주세요'}
+                  ? `총 ${requiredHits}번 쳐주세요 — 자동으로 측정돼요`
+                  : `버튼을 누른 뒤 줄을 ${requiredHits}번 쳐주세요`}
               </p>
             </>
           ) : (
             <div className="w-full space-y-3">
               <div className="text-center mb-2">
                 <div className="text-5xl font-black text-green-400 mb-1">✓</div>
-                <p className="text-sm text-white/60">사운드 캡처 완료</p>
+                <p className="text-sm text-white/60">사운드 캡처 완료 ({requiredHits}번 평균)</p>
               </div>
               <button
                 onClick={handleSave}
@@ -117,7 +141,7 @@ export default function RecordScreen({ racket, onBack, onSaved }: Props) {
         </div>
 
         <p className="text-xs text-white/20 text-center mt-auto pt-6">
-          조용한 환경에서 라켓 중앙 줄을 탁 튕겨주세요
+          손바닥이나 다른 라켓 옆면으로 줄을 {requiredHits}번 쳐주세요
         </p>
       </div>
     </div>

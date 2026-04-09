@@ -20,12 +20,14 @@ export default function CompareScreen({ racket, onBack }: Props) {
   const [newFft, setNewFft] = useState<number[] | null>(null)
   // 캡처 1회당 1번만 저장되도록 — best 변경으로 인한 effect 재실행 방지
   const savedRef = useRef(false)
+  const bestRef = useRef<SoundProfile | null>(null)
 
-  const { status, errorMessage, fftData, waveformData, startListening, stopListening, reset } = useAudioAnalyzer()
+  const { status, errorMessage, fftData, waveformData, hitCount, requiredHits, startListening, stopListening, reset } = useAudioAnalyzer()
 
   const load = async () => {
     const b = await getBestSound(racket.id)
     setBest(b ?? null)
+    bestRef.current = b ?? null
     const h = await getComparisonHistory(racket.id)
     setHistory(h)
   }
@@ -36,11 +38,11 @@ export default function CompareScreen({ racket, onBack }: Props) {
   useEffect(() => {
     if (status !== 'captured' || !fftData) return
     if (savedRef.current) return   // 이미 저장됨, 재실행 방지
-    if (!best) return
+    if (!bestRef.current) return   // ref를 사용해 최신값 보장
 
     savedRef.current = true
     setNewFft(fftData)
-    const pct = cosineSimilarity(best.fftData, fftData)
+    const pct = cosineSimilarity(bestRef.current.fftData, fftData)
     setMatchPct(pct)
     setStep('result')
 
@@ -52,7 +54,7 @@ export default function CompareScreen({ racket, onBack }: Props) {
       recordedAt: Date.now(),
       matchPct: pct,
     }).then(load)
-  }, [status, fftData])   // best는 의존성에서 제거 — best 갱신으로 재실행되지 않도록
+  }, [status, fftData])
 
   const handleStartRecord = async () => {
     savedRef.current = false   // 새 녹음 시작 전 리셋
@@ -133,6 +135,20 @@ export default function CompareScreen({ racket, onBack }: Props) {
           </div>
         </div>
 
+        {/* Hit progress dots during recording */}
+        {step === 'recording' && status === 'listening' && (
+          <div className="flex justify-center gap-3">
+            {Array.from({ length: requiredHits }, (_, i) => (
+              <div
+                key={i}
+                className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                  i < hitCount ? 'bg-green-400 scale-110' : 'bg-white/20'
+                }`}
+              />
+            ))}
+          </div>
+        )}
+
         {/* Error */}
         {status === 'error' && (
           <div className="bg-red-500/10 border border-red-500/30 rounded-2xl px-4 py-3 text-sm text-red-400">
@@ -154,7 +170,7 @@ export default function CompareScreen({ racket, onBack }: Props) {
                 style={{ width: `${matchPct}%`, background: matchColor(matchPct) }}
               />
             </div>
-            <p className="text-xs text-white/30 mt-2">주파수 스펙트럼 유사도</p>
+            <p className="text-xs text-white/30 mt-2">주파수 스펙트럼 유사도 ({requiredHits}번 평균)</p>
           </div>
         )}
 
@@ -174,7 +190,9 @@ export default function CompareScreen({ racket, onBack }: Props) {
               onClick={stopListening}
               className="w-full py-4 rounded-2xl bg-red-500 text-white font-bold text-sm animate-pulse"
             >
-              줄을 튕겨주세요 — 또는 여기 탭
+              {hitCount === 0
+                ? `줄을 ${requiredHits}번 쳐주세요`
+                : `${hitCount}/${requiredHits}번 — 계속 쳐주세요`}
             </button>
           </div>
         )}
