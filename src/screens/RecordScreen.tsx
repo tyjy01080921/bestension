@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { saveBestSound, type Racket } from '../db'
+import { saveBestSound, type Racket, centroidHzFromFft } from '../db'
 import { useAudioAnalyzer } from '../useAudioAnalyzer'
 import { generateId } from '../utils'
 import Waveform from '../components/Waveform'
@@ -38,6 +38,9 @@ export default function RecordScreen({ racket, onBack, onSaved }: Props) {
   const isCaptured = status === 'captured'
 
   const waveColor = isListening ? '#ffffff' : isCaptured ? '#22c55e' : '#ffffff33'
+
+  // 캡처 완료 시 스펙트럴 센트로이드 Hz 계산
+  const centroidHz = isCaptured && fftData ? Math.round(centroidHzFromFft(fftData)) : null
 
   return (
     <div className="flex flex-col min-h-full bg-[#111]">
@@ -122,6 +125,12 @@ export default function RecordScreen({ racket, onBack, onSaved }: Props) {
               <div className="text-center mb-2">
                 <div className="text-5xl font-black text-green-400 mb-1">✓</div>
                 <p className="text-sm text-white/60">사운드 캡처 완료 ({requiredHits}번 평균)</p>
+                {centroidHz !== null && (
+                  <div className="mt-3 bg-white/5 rounded-xl py-3">
+                    <p className="text-2xl font-bold text-green-300">{centroidHz} Hz</p>
+                    <p className="text-xs text-white/30 mt-0.5">스펙트럼 중심 주파수</p>
+                  </div>
+                )}
               </div>
               <button
                 onClick={handleSave}

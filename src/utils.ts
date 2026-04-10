@@ -20,3 +20,14 @@ export function matchColor(pct: number): string {
   if (pct >= 65) return '#f59e0b'  // amber
   return '#ef4444'                  // red
 }
+
+/**
+ * 텐션 유지율 색상 (스펙트럴 센트로이드 기반 물리적 텐션 추정)
+ * matchColor보다 엄격한 임계값 적용
+ */
+export function tensionColor(pct: number): string {
+  if (pct > 100) return '#60a5fa'  // blue: 베스트보다 높은 텐션 (재스트링)
+  if (pct >= 95) return '#22c55e'  // green: 양호
+  if (pct >= 85) return '#f59e0b'  // amber: 주의
+  return '#ef4444'                  // red: 교체 권장
+}
